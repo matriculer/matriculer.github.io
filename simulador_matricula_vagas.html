@@ -1,0 +1,711 @@
+
+<!-- saved from url=(0055)https://bentoemanuel.github.io/simulador_matricula.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title></title>
+        <style>
+            table, th, td {
+                border: 1px solid black;
+                border-collapse: collapse;
+                position: relative;
+            }
+            th {
+                font-family: sans-serif;
+                
+            }
+
+            .preenchido {
+                background: orange;
+                font-family: sans-serif;
+                text-align: center;
+                font-size: 90%;
+                border: 2px solid black;
+            }
+
+            .vagas {
+                position: absolute;
+                top: 0;
+                font-weight: bold;
+                right: 2px;
+            }
+
+
+
+            @keyframes rotation {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            } 
+
+        </style>
+        <script>
+            var DDS = ["Sab", "Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+            let DDS_M = {SEG: 2, TER: 3, QUA: 4, QUI: 5, SEX: 6, SAB: 7, DOM: 8};
+            let horas_sel = [];
+            let materias = [];
+            let mats = [];
+            let possibilidades = [];
+            let horarios = [];
+            let possibilidades_i = 0;
+            let turmas_imp_e = [];
+            const reader = new FileReader();
+            let resTabelas = [];
+            let i_tabela = 0;
+            
+            /*let d = 2;
+            let h = 7;
+            for ( i in tds ) {
+                let el = tds[i];
+                if(el.innerHTML == "") {
+                    el.setAttribute("onclick", "celulaclick("+d+","+Math.floor(h)+",tds["+i+"])");
+                    d = ((d-1)%5)+2;
+                    h += 0.2000001;
+                    console.log(el.onclick);
+                }
+            }*/
+
+            function estaSelecionado(dia, hora) {
+                return horas_sel.some(e => JSON.stringify(e) == JSON.stringify({ dia: dia, hora: hora }))
+            }
+
+            function celulaclick( dia, hora, el) {
+                if(horas_sel.some(e => JSON.stringify(e) == JSON.stringify({ dia: dia, hora: hora }))) {
+                    el.style.background = "none";
+                    horas_sel = horas_sel.filter(function (e) { return !(e.dia == dia && e.hora == hora)})
+                }else {
+                    horas_sel.push({dia: dia, hora: hora});
+                    el.style.background = "blue";
+                }
+
+                let tex = "";
+                for(let d = 2; d < 7; d++) {
+                let ant_sel = false;
+                for(let h = 7; h < 18; h++) {
+                if(estaSelecionado(d,h)) {
+                    if(!ant_sel) {
+                    tex += (tex!=""?" / ":"")+DDS[d]+" "+(h<10?"0":"")+h+"-";
+                    ant_sel = true;
+                    }
+                }else {
+                    if(ant_sel) {
+                        tex += (h<10?"0":"")+h;
+                    }
+                    ant_sel = false;
+                }
+                }
+                }
+                document.getElementById("horarios_text").innerHTML = tex;
+            }
+
+            function add_turma() {
+                let cod = document.getElementById("cod").value;
+                if(cod != "" && document.getElementById("horarios_text").innerHTML != "") {
+                    let hrs = [];
+                    for(let d = 2; d < 7; d++) {
+                        let ant_sel = false;
+                        let hi;
+                        for(let h = 7; h < 18; h++) {
+                            if(estaSelecionado(d,h)) {
+                                if(!ant_sel) {
+                                hi = h;
+                                ant_sel = true;
+                                }
+                            }else {
+                                if(ant_sel) {
+                                    hrs.push({dia: d, hi: hi, hf: h});
+                                }
+                                ant_sel = false;
+                            }
+                        }
+                    }
+                    adicionarTurma(cod, document.getElementById("horarios_text").innerHTML, hrs);
+                    clearCalendario();
+                }
+                
+                
+            }
+
+            function adicionarTurma(cod, texto, hrs,vagas) {
+                materias.push({cod: cod, hrs: hrs, vgs: vagas});
+                document.getElementById("turmas").innerHTML += '<tr style=" text-align: center; height: 25px;"><td>'+cod+'</td><td>'+texto+'</td><td>'+(vagas?vagas+"*":'')+'</td><td><button onclick="rem_turma('+(document.getElementById("turmas").rows.length-1)+')" class="del_turma">🗑</button></td></tr>';
+                atualizaChecks();
+            }
+
+            function rem_turma(i) {
+                materias.splice(i,1);
+                document.getElementById("turmas").deleteRow(i+1);
+                let del_t = document.getElementsByClassName("del_turma");
+                for( j in del_t ) {
+                    if(del_t[j].setAttribute) {
+                        del_t[j].setAttribute("onclick", "rem_turma("+j+")");
+                    }
+                }
+                atualizaChecks();
+            }
+
+            function mostraCalendario() {
+                document.getElementById("calendario").hidden = !document.getElementById("calendario").hidden;
+            }
+
+            function atualizaChecks() {
+                let protomats = []
+                materias.forEach((e) => {if(!protomats.includes(e.cod)) {protomats.push(e.cod)}})
+                document.getElementById("materias_inclusas").innerHTML = "Matérias inclusas:"
+                protomats.forEach((e) => {document.getElementById("materias_inclusas").innerHTML += '<input type="checkbox" checked id="'+e+'" onclick="atualizaMats();" class="check">' + e})
+                mats = protomats;
+                if(JSON.stringify(mats) != JSON.stringify([])) {
+                    document.getElementById("possibilidades").disabled = false;
+                }else {
+                    document.getElementById("possibilidades").disabled = true;
+                }
+            }
+
+            function clearCalendario() {
+                horas_sel = [];
+                for( i in tds ) {
+                    if(tds[i].innerHTML == "" && tds[i].style) {
+                        tds[i].style.background = "none";
+                    }
+                }
+                document.getElementById("horarios_text").innerHTML = "";
+            }
+
+            function atualizaMats() {
+                mats = []
+                let checks = document.getElementsByClassName("check");
+                for ( i in checks ) {
+                    if(checks[i].checked) {
+                        mats.push(checks[i].id)
+                    }
+                }
+                if(JSON.stringify(mats) != JSON.stringify([])) {
+                    document.getElementById("possibilidades").disabled = false;
+                }else {
+                    document.getElementById("possibilidades").disabled = true;
+                }
+            }
+
+            function importTurma(cod) {
+                let turmas = turmas_imp_e.filter(e => e[0] == cod);
+                for( i in turmas) {
+                    let hors_i = [];
+                    let hs_i = turmas[i][8].split("  ");
+                    for ( j in hs_i ) {
+                        if(hs_i[j] != "") {
+                            let hs_j = hs_i[j].split(" ");
+                            let hi = hs_j[1].split("-")[0]*1;
+                            let hf = hs_j[1].split("-")[1]*1;
+                            hors_i.push({dia: DDS_M[hs_j[0]], hi: hi, hf: hf});
+                        }
+                    }
+                    let texto = "";
+                    for( k in hors_i ) {
+                        texto += (texto==""?"":" / ")+DDS[hors_i[k].dia]+" "+(hors_i[k].hi<10?"0":"")+hors_i[k].hi+"-"+(hors_i[k].hf<10?"0":"")+hors_i[k].hf;
+                    }
+                    let msm_hor = turmas.filter((e) => e[8] == turmas[i][8]);
+                    let vags = msm_hor.reduce((accumulator, currentValue) => accumulator + (currentValue[6]*1),0, );
+                    if(!materias.some((e) => JSON.stringify(e) == JSON.stringify({cod: cod, hrs: hors_i, vgs: vags}))) {
+                        adicionarTurma(cod,texto,hors_i,vags);
+                    }
+                }
+            }
+
+            function importFile(imp) {
+                let turmas_imp = imp.split("\r\n");
+                turmas_imp_e = [];
+                turmas_imp.forEach((e) => {turmas_imp_e.push(e.split(";"))});
+                for( e in turmas_imp_e ) {
+                    for( g in turmas_imp_e[e] ) {
+                        turmas_imp_e[e][g] = turmas_imp_e[e][g].trim();
+                    }
+                }
+                let dt1 = turmas_imp_e[0][2].slice(28)
+                document.getElementById("ult_atualizacao").innerHTML = "Última atualização: " + dt1;
+                let a1 = dt1.split(" ")
+                let a2 = a1[0].split("/")
+                let b1 = a1[1].slice(0,-1).split(":")
+                let b2 = new Date(a2[2], a2[1] -1, a2[0], b1[0], b1[1]);
+                if( Date.now() - b2  > 529200000 ) {
+                        document.getElementById("ult_atualizacao").style.color = darkred;
+                }
+            }
+
+            function mostrarFile() {
+                document.getElementById("import_text").hidden = true;
+                document.getElementById("import_files").hidden = false;
+            }
+
+            function processarArquivo() {
+                reader.onload = (event) => {
+                    importFile(event.target.result);
+                };
+                reader.readAsText(document.getElementById("import_files").files[0], 'UTF-16');
+            }
+
+            function importTurmas() {
+                let cods = document.getElementById("cod").value.toUpperCase().split(/,(?![^[\]]*\])/);
+               document.getElementById('importar_turmas').hidden = true;
+                for(i in cods) {
+                    let brack = cods[i].includes("[") + cods[i].includes("]");
+                    if(brack == 2) {
+                        let cods_hors = cods[i].match("\\[.*\\]")[0].slice(1,-1);
+                        cods_hors = cods_hors.includes(",")?cods_hors.split(","):[cods_hors]
+                        for(j in cods_hors) {
+                            
+                            importTurmaRestC(cods[i].match("^[^[({]*")[0],cods_hors[j]);
+                            
+                        }
+                    }else if(brack == 1) {
+                        throw new Error("Parsing Error!");
+                    }else {
+                        importTurma(cods[i]);
+                    }
+                    document.getElementById('importar_turmas').hidden = true;
+                }
+                document.getElementById('cod').value = "";
+            }
+
+            function confereMateria() {
+                      let cods = document.getElementById("cod").value.toUpperCase().split(/,(?<!\[[^\]]*)/);
+                      document.getElementById('importar_turmas').hidden = true;
+                      for(i in cods) {
+                        if( cods[i].match("^[^[({]*") != "" && turmas_imp_e.filter(e => e[0] == cods[i].match("^[^[({]*")).length > 0) {
+                            document.getElementById('importar_turmas').hidden = false;
+                            if(cods.length > 1) {
+                                document.getElementById("importar_turmas"). innerHTML = '  Turma disponível para ≥ 1 dessas matérias no banco de dados da PUC: <button onclick="importTurmas()">Importar Turmas...</button>';
+                        } else {
+                                document.getElementById("importar_turmas"). innerHTML = '  Turma disponível para essa matéria no banco de dados da PUC: <button onclick="importTurmas()">Importar Turmas...</button>';
+                            }
+                        }
+                      }
+              }
+
+              function importTurmaRestC(cod,tur) {
+                  let turmas = turmas_imp_e.filter(e => e[0] == cod).filter(e => e[4] == tur);
+                  for( i in turmas) {
+                      let hors_i = [];
+                      let hs_i = turmas[i][8].split("  ");
+                      for ( j in hs_i ) {
+                          if(hs_i[j] != "") {
+                              let hs_j = hs_i[j].split(" ");
+                              let hi = hs_j[1].split("-")[0]*1;
+                              let hf = hs_j[1].split("-")[1]*1;
+                              hors_i.push({dia: DDS_M[hs_j[0]], hi: hi, hf: hf});
+                          }
+                      }
+                      let texto = "";
+                      for( k in hors_i ) {
+                          texto += (texto==""?"":" / ")+DDS[hors_i[k].dia]+" "+(hors_i[k].hi<10?"0":"")+hors_i[k].hi+"-"+(hors_i[k].hf<10?"0":"")+hors_i[k].hf;
+                      }
+                      if(!materias.some((e) => JSON.stringify(e) == JSON.stringify({cod: cod, hrs: hors_i}))) {
+                          adicionarTurma(cod,texto,hors_i);
+                      }
+                  }
+              }
+
+              function importTurmaRestH(cod,hrs) {
+                  
+              }
+
+              function renderTabela(horario) {
+                let dias = [2,3,4,5,6];
+                let hs = [[7,8],[8,9],[9,10],[10,11],[11,12],[12,13],[13,14],[14,15],[15,16],[16,17]];
+                let tempos = Array.from({ length: hs.length }, () => new Array(dias.length).fill(""));;
+                for(dia in dias) {
+                    let h = 0;
+                    while(h < hs.length) {
+                        let tx = '<td'
+                        let span = 1;
+                        let fcd = ["",""];
+                        if(fab(horario, dias, hs, dia, h)[0] != " ") {
+                            tx += ' class="preenchido" ';
+                            fcd = fab(horario, dias, hs, dia, h);
+                            for(let i = h+1; i < hs.length; i++) {
+                                if(fab(horario, dias, hs, dia, i)[0] == fcd[0]) {
+                                    span++;
+                                }else {
+                                    break;
+                                }
+                            }
+                            if(span>1) {
+                                tx += 'rowspan="' + span + '"';
+                            }
+                        }else {
+                            tx += ' style="background: none;"';
+                        }
+                            tx += ">" + fcd[0] + "<span class='vagas'>" + fcd[1] + "</span></td>";
+                            tempos[h][dia] = tx;
+                            h += span;
+                    }
+                }
+                let HS = ['<td id="0">07-08</td>','<tr><td id="6">08-09</td>','<tr><td id="12">09-10</td>','<tr><td id="18">10-11</td>','<tr><td id="24">11-12</td>','<tr><td id="30">12-13</td>','<tr><td id="36">13-14</td>','<tr><td id="42">14-15</td>','<tr><td id="48">15-16</td>','<tr><td id="54">16-17</td>']
+                let tex = '<tbody><tr><th style="width: 46.69px;/* height: 100%; */"></th> <th style="width: 80.5px;font-family: sans-serif;">Segunda</th> <th style="width: 80.5px;">Terça</th> <th style="width: 80.5px;">Quarta</th> <th style="width: 80.5px;">Quinta</th> <th style="width: 80.5px;">Sexta</th></tr>';
+            for( h in tempos ) {
+                tex += HS[h];
+                for( dia in tempos[h] ) {
+                    tex += tempos[h][dia];
+                }
+                tex += "</tr>";
+            }
+            tex += "</tbody>";
+            return tex;
+            }
+
+            function proxTabela(n) {
+                i_tabela = Math.abs((i_tabela + n) % resTabelas.length);
+                document.getElementById("horario_pos").innerHTML = resTabelas[i_tabela];
+                document.getElementById("cont_tab").innerHTML = i_tabela+1 +"/" + resTabelas.length + " ";
+            }
+
+            async function impGit() {
+                document.getElementById("import_text").innerHTML = '<span style="animation: rotation 1s linear infinite; display: inline-block;">⏳</span>';
+                let csv = (await fetch("https://bentoemanuel.github.io/HORARIO_DAS_DISCIPLINAS.csv"));
+                let v = await csv.text();
+                importFile(v);
+                document.getElementById("import_text").innerHTML = '';
+                
+            }
+
+            
+            //BACK-END
+            function render(horario) {
+                let texto = ""
+                let dias = [2,3,4,5,6];
+                let hs = [[7,8],[8,9],[9,10],[10,11],[11,12],[12,13],[13,14],[14,15],[15,16],[16,17]];
+                for(h in hs) {
+                let tex = "=SPLIT(\""
+                    for(dia in dias) {
+                        tex += fab(horario, dias, hs, dia, h)+",";
+                    }
+                texto += tex+"\";\",\") \n"
+                }
+                return texto
+            }
+            function fab(horario, dias, hs, dia, h) {
+                for( i in horario) {
+                        for( t in horario[i].hrs) {
+                            let tempo = horario[i].hrs[t];
+                            if(overlap(tempo.dia, tempo.hi, tempo.hf, dias[dia], hs[h][0], hs[h][1])) {
+                            return [horario[i].cod,horario[i].vgs];
+                            }
+                        }
+                        }
+                return [" "," "];
+            }
+            function addHora(materia, ino) {
+                let red = materias.filter((e) => (e.cod == materia))
+                for ( i in red) {
+                    let m = red[i];
+                    if(testaHorarios(m, horarios)) {
+                        horarios.push(m);
+                        if(ino+1 != mats.length) {
+                            addHora(mats[ino+1], ino+1);
+                        }else {
+                        let horeste = horarios.slice();
+                        horeste.sort((a,b) => (a.cod<b.cod)?-1:1);
+                        if(!possibilidades.some((e) => JSON.stringify(e) == JSON.stringify(horeste))) {
+                        possibilidades.push(horeste);
+                        possibilidades_i++;
+                        console.log(possibilidades_i);
+                        }
+                        }
+                        horarios.pop();
+                    }
+                }
+            }
+            function testaHorarios(materia, horarios) {
+                for ( i in materia.hrs) {
+                    if(!testaHor(materia.hrs[i], horarios)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            function testaHor( horario, horarios) {
+                for ( i in horarios) {
+                    for ( j in horarios[i].hrs) {
+                        let ho = horarios[i].hrs[j]
+                        if(overlap(horario.dia, horario.hi, horario.hf, ho.dia, ho.hi, ho.hf)) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            function overlap(dia, hi, hf, dia2, hi2, hf2) {
+                if(dia != dia2) {
+                    return false;
+                }else {
+                    if(hi2 >= hi && hi2 < hf) {
+                        return true;
+                    }else if(hf2 > hi && hf2 <= hf) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function testaPossibilidades() {
+                document.getElementById('horarios_possiveis').innerHTML = '<span style="animation: rotation 1s linear infinite; display: inline-block;">⏳</span>';
+                setTimeout(() => { possibilidades_i = 0;
+                possibilidades = [];
+                horarios = [];
+                addHora(mats[0], 0);
+                document.getElementById("horarios_possiveis").innerHTML = "Horários possíveis: "+possibilidades_i;
+                resTabelas = [];
+                for( i in possibilidades ) {
+                    resTabelas.push(renderTabela(possibilidades[i]))
+                }
+                i_tabela = 0;
+                proxTabela(0);
+                document.getElementById("tab_pags").hidden = false;
+                document.getElementById("horario_pos").hidden = false;},10);
+            }
+
+        </script>
+    </head>
+    <body>
+<span style="
+    right: 10pt;
+    position: absolute;
+    font-size: large;
+    text-align: right;
+    "> <a href="https://github.com/bentoemanuel/bentoemanuel.github.io/blob/main/README.md" target="_blank">Como usar
+</a><br>
+<a href="https://github.com/bentoemanuel/bentoemanuel.github.io/issues" target="_blank">Dúvidas/Sugestões/Erros</a></span>
+        <p>Insira o código da Matéria:  <span id="import_text"></span></p>
+        <textarea id="cod" style="margin: 0px;width: 179px;height: 25px;font-size: 123%;resize: none;" oninput="confereMateria();"></textarea>
+        <span id="importar_turmas" hidden="">  Turma disponível para essa matéria no arquivo: <button onclick="importTurmas()">Importar Turmas...</button></span>
+        <p>Insira os horários da turma:</p>
+        <select style="width: 212.25px;height: 3%;" onclick="mostraCalendario()" id="horarios"><option id="horarios_text"></option>
+            
+        </select>
+        <table style="/* position: absolute; */margin-left: 2px;" id="calendario" hidden="">
+            <tbody><tr><th style="
+            width: 46.69px;
+            /* height: 100%; */
+        "></th> <th style="
+            width: 80.5px;
+            font-family: sans-serif;
+        ">Segunda</th> <th style="
+            width: 80.5px;
+        ">Terça</th> <th style="
+            width: 80.5px;
+        ">Quarta</th> <th style="
+            width: 80.5px;
+        ">Quinta</th> <th style="
+            width: 80.5px;
+        ">Sexta</th>
+        </tr>
+        <tr><td id="0">07-08
+        </td>
+        <td style="background: none;" id="1" onclick="celulaclick(2,7,tds[1])"></td>
+        <td style="background: none;" id="2" onclick="celulaclick(3,7,tds[2])"></td>
+        <td style="background: none;" id="3" onclick="celulaclick(4,7,tds[3])"></td>
+        <td style="background: none;" id="4" onclick="celulaclick(5,7,tds[4])"></td>
+        <td style="background: none;" id="5" onclick="celulaclick(6,7,tds[5])"></td></tr>
+        <tr><td id="6">08-09
+        </td>
+        <td style="background: none;" id="7" onclick="celulaclick(2,8,tds[7])"></td>
+        <td style="background: none;" id="8" onclick="celulaclick(3,8,tds[8])"></td>
+        <td style="background: none;" id="9" onclick="celulaclick(4,8,tds[9])"></td>
+        <td style="background: none;" id="10" onclick="celulaclick(5,8,tds[10])"></td>
+        <td style="background: none;" id="11" onclick="celulaclick(6,8,tds[11])"></td></tr>
+        <tr><td id="12">09-10
+        </td>
+        <td style="background: none;" id="13" onclick="celulaclick(2,9,tds[13])"></td>
+        <td style="background: none;" id="14" onclick="celulaclick(3,9,tds[14])"></td>
+        <td style="background: none;" id="15" onclick="celulaclick(4,9,tds[15])"></td>
+        <td style="background: none;" id="16" onclick="celulaclick(5,9,tds[16])"></td>
+        <td style="background: none;" id="17" onclick="celulaclick(6,9,tds[17])"></td></tr>
+        <tr><td id="18">10-11
+        </td>
+        <td style="background: none;" id="19" onclick="celulaclick(2,10,tds[19])"></td>
+        <td style="background: none;" id="20" onclick="celulaclick(3,10,tds[20])"></td>
+        <td style="background: none;" id="21" onclick="celulaclick(4,10,tds[21])"></td>
+        <td style="background: none;" id="22" onclick="celulaclick(5,10,tds[22])"></td>
+        <td style="background: none;" id="23" onclick="celulaclick(6,10,tds[23])"></td></tr>
+        <tr><td id="24">11-12
+        </td>
+        <td style="background: none;" id="25" onclick="celulaclick(2,11,tds[25])"></td>
+        <td style="background: none;" id="26" onclick="celulaclick(3,11,tds[26])"></td>
+        <td style="background: none;" id="27" onclick="celulaclick(4,11,tds[27])"></td>
+        <td style="background: none;" id="28" onclick="celulaclick(5,11,tds[28])"></td>
+        <td style="background: none;" id="29" onclick="celulaclick(6,11,tds[29])"></td></tr>
+        <tr><td id="30">12-13
+        </td>
+        <td style="background: none;" id="31" onclick="celulaclick(2,12,tds[31])"></td>
+        <td style="background: none;" id="32" onclick="celulaclick(3,12,tds[32])"></td>
+        <td style="background: none;" id="33" onclick="celulaclick(4,12,tds[33])"></td>
+        <td style="background: none;" id="34" onclick="celulaclick(5,12,tds[34])"></td>
+        <td style="background: none;" id="35" onclick="celulaclick(6,12,tds[35])"></td></tr>
+        <tr><td id="36">13-14
+        </td>
+        <td style="background: none;" id="37" onclick="celulaclick(2,13,tds[37])"></td>
+        <td style="background: none;" id="38" onclick="celulaclick(3,13,tds[38])"></td>
+        <td style="background: none;" id="39" onclick="celulaclick(4,13,tds[39])"></td>
+        <td style="background: none;" id="40" onclick="celulaclick(5,13,tds[40])"></td>
+        <td style="background: none;" id="41" onclick="celulaclick(6,13,tds[41])"></td></tr>
+        <tr><td id="42">14-15
+        </td>
+        <td style="background: none;" id="43" onclick="celulaclick(2,14,tds[43])"></td>
+        <td style="background: none;" id="44" onclick="celulaclick(3,14,tds[44])"></td>
+        <td style="background: none;" id="45" onclick="celulaclick(4,14,tds[45])"></td>
+        <td style="background: none;" id="46" onclick="celulaclick(5,14,tds[46])"></td>
+        <td style="background: none;" id="47" onclick="celulaclick(6,14,tds[47])"></td></tr>
+        <tr><td id="48">15-16
+        </td>
+        <td style="background: none;" id="49" onclick="celulaclick(2,15,tds[49])"></td>
+        <td style="background: none;" id="50" onclick="celulaclick(3,15,tds[50])"></td>
+        <td style="background: none;" id="51" onclick="celulaclick(4,15,tds[51])"></td>
+        <td style="background: none;" id="52" onclick="celulaclick(5,15,tds[52])"></td>
+        <td style="background: none;" id="53" onclick="celulaclick(6,15,tds[53])"></td></tr>
+        <tr><td id="54">16-17
+        </td>
+        <td style="background: none;" id="55" onclick="celulaclick(2,16,tds[55])"></td>
+        <td style="background: none;" id="56" onclick="celulaclick(3,16,tds[56])"></td>
+        <td style="background: none;" id="57" onclick="celulaclick(4,16,tds[57])"></td>
+        <td style="background: none;" id="58" onclick="celulaclick(5,16,tds[58])"></td>
+        <td style="background: none;" id="59" onclick="celulaclick(6,16,tds[59])"></td>
+        </tr>
+        </tbody>
+        </table>
+        <p></p>
+        <button onclick="add_turma()">Adicionar Turma</button>
+        <p></p>
+        <p>Turmas:  <span style="font-weight: 100;color: red;">*</span>Recurso experimental, vagas podem não estar atualizadas, confira a última atualização no canto da página. <strong>Consulte fontes oficiais para dados confiáveis.</strong></p>
+        <table style="
+            width: 525px;
+        ">
+            <tbody id="turmas">
+                <tr style="
+                    height: 25px;
+                    background: lightgrey;
+                ">
+                    <th style="
+                        width: 146.69px;
+                    ">Código da Matéria</th>
+                    <th>Horário</th><th>Vagas<span style="font-weight: 100;color: red;">*</span></th>
+                    <th style="
+                        width: 25px;
+                    "></th>
+                </tr>
+            </tbody>
+        </table>
+        <p id="materias_inclusas">Matérias inclusas:</p>
+        <button id="possibilidades" onclick="testaPossibilidades()" disabled="">Criar todos os horários possíveis</button>
+        <p id="horarios_possiveis">Horários possíveis: </p>
+        <p id="tab_pags" hidden=""><span id="cont_tab">1/12 </span><button onclick="proxTabela(-1)">◀</button><button onclick="proxTabela(1)">▶</button></p>
+
+        <table style="margin-left: 2px;" id="horario_pos" hidden="">
+            <tbody><tr><th style="
+            width: 46.69px;
+            /* height: 100%; */
+        "></th> <th style="
+            width: 80.5px;
+            font-family: sans-serif;
+        ">Segunda</th> <th style="
+            width: 80.5px;
+        ">Terça</th> <th style="
+            width: 80.5px;
+        ">Quarta</th> <th style="
+            width: 80.5px;
+        ">Quinta</th> <th style="
+            width: 80.5px;
+        ">Sexta</th>
+        </tr>
+        <tr><td id="0">07-08
+        </td>
+        <td style="background: orange;font-family: sans-serif;text-align: center;font-size: 90%;border: 2px solid black;" class="preenchido" rowspan="2">ENG4021</td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td></tr>
+        <tr><td id="6">08-09
+        </td>
+        
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td></tr>
+        <tr><td id="12">09-10
+        </td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td></tr>
+        <tr><td id="18">10-11
+        </td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td></tr>
+        <tr><td id="24">11-12
+        </td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td></tr>
+        <tr><td id="30">12-13
+        </td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td></tr>
+        <tr><td id="36">13-14
+        </td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td></tr>
+        <tr><td id="42">14-15
+        </td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td></tr>
+        <tr><td id="48">15-16
+        </td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td></tr>
+        <tr><td id="54">16-17
+        </td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        <td style="background: none;"></td>
+        </tr>
+        </tbody>
+        </table>
+
+        <script>
+            document.getElementById("horarios").addEventListener("mousedown", (e) => {e.preventDefault()});
+            let calendario = document.getElementById("calendario")
+            let tds = calendario.getElementsByTagName("td")
+            document.getElementById("cod").addEventListener("keypress", e => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    importTurmas();
+                }
+            });
+            impGit();
+        </script>
+
+        <p style="position: absolute; right: 10px; bottom: 0px;" id="ult_atualizacao"></p>
+
+
+
+
+<div id="window_namer_extension_has_loaded" style="display: none;"></div></body></html>
