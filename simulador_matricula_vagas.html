@@ -191,7 +191,7 @@
                 let turmas = turmas_imp_e.filter(e => e[0] == cod);
                 for( i in turmas) {
                     let hors_i = [];
-                    let hs_i = turmas[i][8].split("  ");
+                    let hs_i = turmas[i][8].split(" ");
                     for ( j in hs_i ) {
                         if(hs_i[j] != "") {
                             let hs_j = hs_i[j].split(" ");
@@ -286,7 +286,7 @@
                   let turmas = turmas_imp_e.filter(e => e[0] == cod).filter(e => e[4] == tur);
                   for( i in turmas) {
                       let hors_i = [];
-                      let hs_i = turmas[i][8].split("   ");
+                      let hs_i = turmas[i][8].split(" ");
                       for ( j in hs_i ) {
                           if(hs_i[j] != "") {
                               let hs_j = hs_i[j].split(" ");
