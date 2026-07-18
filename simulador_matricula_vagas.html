@@ -361,7 +361,7 @@
 
             async function impGit() {
                 document.getElementById("import_text").innerHTML = '<span style="animation: rotation 1s linear infinite; display: inline-block;">⏳</span>';
-                let csv = (await fetch("https://bentoemanuel.github.io/HORARIO_DAS_DISCIPLINAS.csv"));
+                let csv = (await fetch("https://matriculer.github.io/HORARIO_DAS_DISCIPLINAS.csv"));
                 let v = await csv.text();
                 importFile(v);
                 document.getElementById("import_text").innerHTML = '';
