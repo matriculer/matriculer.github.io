@@ -357,6 +357,9 @@
                 i_tabela = Math.abs((i_tabela + n) % resTabelas.length);
                 document.getElementById("horario_pos").innerHTML = resTabelas[i_tabela];
                 document.getElementById("cont_tab").innerHTML = i_tabela+1 +"/" + resTabelas.length + " ";
+                let cred = 0;
+                possibilidades[i_tabela].forEach((e) => {e.hrs.forEach((g) => {cred += g.hf-g.hi})});
+                document.getElementById("cred").innerHTML = "Total de créditos: " + cred;
             }
 
             async function impGit() {
@@ -461,7 +464,8 @@
                 i_tabela = 0;
                 proxTabela(0);
                 document.getElementById("tab_pags").hidden = false;
-                document.getElementById("horario_pos").hidden = false;},10);
+                document.getElementById("horario_pos").hidden = false;
+                document.getElementById("cred").hidden = false;},10);
             }
 
         </script>
@@ -689,6 +693,7 @@
         </tr>
         </tbody>
         </table>
+        <span id="cred" hidden style="right:0px"></span>
 
         <script>
             document.getElementById("horarios").addEventListener("mousedown", (e) => {e.preventDefault()});
