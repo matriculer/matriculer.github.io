@@ -360,6 +360,7 @@
                 let cred = 0;
                 possibilidades[i_tabela].forEach((e) => {e.hrs.forEach((g) => {cred += g.hf-g.hi})});
                 document.getElementById("cred").innerHTML = "Total de créditos: " + cred;
+                if (cred > 30) {document.getElementById("cred").style.color = "red"} else {document.getElementById("cred").style.color = "black"}
             }
 
             async function impGit() {
